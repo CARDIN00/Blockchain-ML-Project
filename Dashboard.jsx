@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
 import contractABI from "../utils/contractABI.jsx";
+import "../index.css"; // Import the CSS file
 
 const contractAddress = "0x052d5D86568BEf96EaFa3b0A049Bc4dc11D10B93";
 
@@ -10,6 +11,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { account, isOwner } = location.state || {};
 
+  const [selectedFunction, setSelectedFunction] = useState(null);
   const [targetAddress, setTargetAddress] = useState("");
   const [message, setMessage] = useState("");
   const [checkAddress, setCheckAddress] = useState("");
@@ -25,26 +27,6 @@ const Dashboard = () => {
     return new ethers.Contract(contractAddress, contractABI, signer);
   };
 
-  useEffect(() => {
-    const fetchContractStatus = async () => {
-      if (!window.ethereum) {
-        console.error("Ethereum provider not found");
-        return;
-      }
-
-      try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const contract = new ethers.Contract(contractAddress, contractABI, provider);
-        const paused = await contract.isPaused();
-        setContractStatus(paused);
-      } catch (error) {
-        console.error("Error fetching contract status:", error);
-      }
-    };
-
-    fetchContractStatus();
-  }, []);
-
   const sendEth = async () => {
     if (!window.ethereum) {
       setMessage("Ethereum provider not found");
@@ -59,13 +41,11 @@ const Dashboard = () => {
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-
       const amountInWei = ethers.parseEther(amount);
       const tx = await signer.sendTransaction({
         to: recipient,
         value: amountInWei,
       });
-
       await tx.wait();
       setMessage(`Successfully sent ${amount} ETH to ${recipient}`);
       setRecipient("");
@@ -78,7 +58,6 @@ const Dashboard = () => {
 
   const handleFreezeAccount = async () => {
     if (!targetAddress) return setMessage("Please enter an address to freeze.");
-
     try {
       const contract = await getContract();
       const tx = await contract.freezeAccount(targetAddress);
@@ -92,7 +71,6 @@ const Dashboard = () => {
 
   const handleUnfreezeAccount = async () => {
     if (!targetAddress) return setMessage("Please enter an address to unfreeze.");
-
     try {
       const contract = await getContract();
       const tx = await contract.unfreezeAccount(targetAddress);
@@ -158,62 +136,77 @@ const Dashboard = () => {
   };
 
   return (
-    <div>
-      <h1>Dashboard</h1>
-      <p>Connected Wallet: {account ? account : "Not Connected"}</p>
-      <p>Contract Status: {contractStatus ? "Paused ⏸️" : "Active ✅"}</p>
-
-      <button onClick={() => navigate("/transactions", { state: { account } })}>
-        View Transactions
-      </button>
-
-      <button onClick={() => navigate("/fraud-detection", { state: { account } })}>
-        Fraud Detection
-      </button>
-
-      <button onClick={() => navigate("/account-status", { state: { account } })}>
-        Account Status
-      </button>
-
-      <div>
-        <h3>Send ETH</h3>
-        <input
-          type="text"
-          placeholder="Recipient address"
-          value={recipient}
-          onChange={(e) => setRecipient(e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Amount in ETH"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-        />
-        <button onClick={sendEth}>Send ETH</button>
+    <div className="dashboard-container">
+      {/* Sidebar */}
+      <div className="sidebar">
+        <h2>Dashboard</h2>
+        <button onClick={() => setSelectedFunction("sendEth")}>Send ETH</button>
+        {isOwner && (
+          <>
+            <button onClick={() => setSelectedFunction("freezeAccount")}>Freeze Account</button>
+            <button onClick={() => setSelectedFunction("unfreezeAccount")}>Unfreeze Account</button>
+            <button onClick={() => setSelectedFunction("transferOwnership")}>Transfer Ownership</button>
+            <button onClick={() => setSelectedFunction("pauseContract")}>Pause Contract</button>
+            <button onClick={() => setSelectedFunction("resumeContract")}>Resume Contract</button>
+          </>
+        )}
+        <button onClick={() => setSelectedFunction("checkFrozenStatus")}>Check Frozen Status</button>
       </div>
 
-      {isOwner && (
-        <div>
-          <h2>Owner Panel</h2>
+      {/* Main Content */}
+      <div className="main-content">
+        <h1>Welcome, {account}</h1>
+        <p>Contract Status: {contractStatus ? "Paused ⏸️" : "Active ✅"}</p>
 
-          <div>
-            <h3>Freeze / Unfreeze Account</h3>
+        {/* Conditional Rendering Based on Selected Function */}
+        {selectedFunction === "sendEth" && (
+          <div className="form-container">
+            <h3>Send ETH</h3>
+            <input
+              type="text"
+              placeholder="Recipient address"
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Amount in ETH"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+            <button onClick={sendEth}>Send ETH</button>
+          </div>
+        )}
+
+        {selectedFunction === "freezeAccount" && (
+          <div className="form-container">
+            <h3>Freeze Account</h3>
             <input
               type="text"
               placeholder="Enter address"
               value={targetAddress}
               onChange={(e) => setTargetAddress(e.target.value)}
             />
-            <button onClick={handleFreezeAccount} disabled={contractStatus || !isOwner}>
-              Freeze
-            </button>
-            <button onClick={handleUnfreezeAccount} disabled={contractStatus || !isOwner}>
-              Unfreeze
-            </button>
+            <button onClick={handleFreezeAccount}>Freeze</button>
           </div>
+        )}
 
-          <div>
-            <h3>Check Account Freeze Status</h3>
+        {selectedFunction === "unfreezeAccount" && (
+          <div className="form-container">
+            <h3>Unfreeze Account</h3>
+            <input
+              type="text"
+              placeholder="Enter address"
+              value={targetAddress}
+              onChange={(e) => setTargetAddress(e.target.value)}
+            />
+            <button onClick={handleUnfreezeAccount}>Unfreeze</button>
+          </div>
+        )}
+
+        {selectedFunction === "checkFrozenStatus" && (
+          <div className="form-container">
+            <h3>Check Frozen Status</h3>
             <input
               type="text"
               placeholder="Enter address"
@@ -225,8 +218,10 @@ const Dashboard = () => {
               <p>Status: {frozenStatus ? "Frozen ❄️" : "Active ✅"}</p>
             )}
           </div>
+        )}
 
-          <div>
+        {selectedFunction === "transferOwnership" && (
+          <div className="form-container">
             <h3>Transfer Ownership</h3>
             <input
               type="text"
@@ -236,20 +231,24 @@ const Dashboard = () => {
             />
             <button onClick={transferOwnership}>Transfer</button>
           </div>
+        )}
 
-          <div>
-            <h3>Pause / Resume Contract</h3>
-            <button onClick={handlePauseContract} disabled={contractStatus || !isOwner}>
-              Pause Contract
-            </button>
-            <button onClick={handleResumeContract} disabled={!contractStatus || !isOwner}>
-              Resume Contract
-            </button>
+        {selectedFunction === "pauseContract" && (
+          <div className="form-container">
+            <h3>Pause Contract</h3>
+            <button onClick={handlePauseContract}>Pause</button>
           </div>
-        </div>
-      )}
+        )}
 
-      {message && <p>{message}</p>}
+        {selectedFunction === "resumeContract" && (
+          <div className="form-container">
+            <h3>Resume Contract</h3>
+            <button onClick={handleResumeContract}>Resume</button>
+          </div>
+        )}
+
+        {message && <div className="message">{message}</div>}
+      </div>
     </div>
   );
 };
