@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
 import contractABI from "../utils/contractABI.jsx";
-import "../index.css"; // Import the CSS file
+import "../index.css"; 
 
 const contractAddress = "0x052d5D86568BEf96EaFa3b0A049Bc4dc11D10B93";
 
@@ -20,6 +20,13 @@ const Dashboard = () => {
   const [contractStatus, setContractStatus] = useState(null);
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
+
+  // New state for fraud detection
+  const [fraudThreshold, setFraudThreshold] = useState(1000); // Default value
+  const [penaltyAmount, setPenaltyAmount] = useState(500);     // Default value
+  const [transactions, setTransactions] = useState([]);
+  const [fraudulentTransactions, setFraudulentTransactions] = useState([]);
+  const [fraudUsers, setFraudUsers] = useState([]);
 
   const getContract = async () => {
     const provider = new ethers.BrowserProvider(window.ethereum);
@@ -135,6 +142,43 @@ const Dashboard = () => {
     }
   };
 
+  // New functions
+
+  const getUserTransactions = async () => {
+    try {
+      const contract = await getContract();
+      const userTransactions = await contract.getUserTransactions(account);
+      setTransactions(userTransactions);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      setMessage("Failed to fetch user transactions.");
+    }
+  };
+
+  const updateFraudDetectionThreshold = async () => {
+    try {
+      const contract = await getContract();
+      const tx = await contract.updateFraudDetectionThreshold(fraudThreshold);
+      await tx.wait();
+      setMessage(`Fraud detection threshold updated to ${fraudThreshold}`);
+    } catch (error) {
+      console.error("Error updating fraud detection threshold:", error);
+      setMessage("Failed to update fraud detection threshold.");
+    }
+  };
+
+  const updatePenaltyAmount = async () => {
+    try {
+      const contract = await getContract();
+      const tx = await contract.updatePenaltyAmount(penaltyAmount);
+      await tx.wait();
+      setMessage(`Penalty amount updated to ${penaltyAmount}`);
+    } catch (error) {
+      console.error("Error updating penalty amount:", error);
+      setMessage("Failed to update penalty amount.");
+    }
+  };
+
   return (
     <div className="dashboard-container">
       {/* Sidebar */}
@@ -148,9 +192,12 @@ const Dashboard = () => {
             <button onClick={() => setSelectedFunction("transferOwnership")}>Transfer Ownership</button>
             <button onClick={() => setSelectedFunction("pauseContract")}>Pause Contract</button>
             <button onClick={() => setSelectedFunction("resumeContract")}>Resume Contract</button>
+            <button onClick={() => setSelectedFunction("updateFraudDetectionThreshold")}>Update Fraud Detection Threshold</button>
+            <button onClick={() => setSelectedFunction("updatePenaltyAmount")}>Update Penalty Amount</button>
           </>
         )}
         <button onClick={() => setSelectedFunction("checkFrozenStatus")}>Check Frozen Status</button>
+        <button onClick={() => setSelectedFunction("getUserTransactions")}>View Transactions</button>
       </div>
 
       {/* Main Content */}
@@ -191,7 +238,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        {selectedFunction === "unfreezeAccount" && (
+{selectedFunction === "unfreezeAccount" && (
           <div className="form-container">
             <h3>Unfreeze Account</h3>
             <input
@@ -244,6 +291,49 @@ const Dashboard = () => {
           <div className="form-container">
             <h3>Resume Contract</h3>
             <button onClick={handleResumeContract}>Resume</button>
+          </div>
+        )}
+
+        {/* Fraud Detection Threshold */}
+        {selectedFunction === "updateFraudDetectionThreshold" && (
+          <div className="form-container">
+            <h3>Update Fraud Detection Threshold</h3>
+            <input
+              type="number"
+              value={fraudThreshold}
+              onChange={(e) => setFraudThreshold(Number(e.target.value))}
+            />
+            <button onClick={updateFraudDetectionThreshold}>Update Threshold</button>
+          </div>
+        )}
+
+        {/* Penalty Amount */}
+        {selectedFunction === "updatePenaltyAmount" && (
+          <div className="form-container">
+            <h3>Update Penalty Amount</h3>
+            <input
+              type="number"
+              value={penaltyAmount}
+              onChange={(e) => setPenaltyAmount(Number(e.target.value))}
+            />
+            <button onClick={updatePenaltyAmount}>Update Penalty</button>
+          </div>
+        )}
+
+        {/* User Transactions */}
+        {selectedFunction === "getUserTransactions" && (
+          <div className="form-container">
+            <h3>User Transactions</h3>
+            <button onClick={getUserTransactions}>Load Transactions</button>
+            {transactions.length > 0 && (
+              <ul>
+                {transactions.map((tx, index) => (
+                  <li key={index}>
+                    {tx.transactionHash} - {tx.timestamp}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
