@@ -8,8 +8,13 @@ const contractAddress = "0x052d5D86568BEf96EaFa3b0A049Bc4dc11D10B93";
 const ConnectWallet = () => {
   const [account, setAccount] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false); // Loading state
+  const [fraudThreshold, setFraudThreshold] = useState(1000);  // Added state for fraud threshold
+  const [penaltyAmount, setPenaltyAmount] = useState(500);      // Added state for penalty amount
+  const [transactions, setTransactions] = useState([]);         // Added state for user transactions
+  const [fraudulentTransactions, setFraudulentTransactions] = useState([]); // State for fraudulent transactions
+  const [fraudUsers, setFraudUsers] = useState([]);             // State for fraudulent users
   const navigate = useNavigate();
 
   const connectWallet = async () => {
@@ -27,27 +32,32 @@ const ConnectWallet = () => {
       const address = await signer.getAddress();
       setAccount(address);
 
-      // Get contract instance
+      //  Get contract instance
       const contract = new ethers.Contract(contractAddress, contractABI, signer);
 
-      // Check if the connected address is the contract owner
+      //  Check if the connected address is the contract owner
       const owner = await contract.owner();
       const userIsOwner = address.toLowerCase() === owner.toLowerCase();
       setIsOwner(userIsOwner);
 
       setMessage("Wallet Connected Successfully!");
 
-      // Navigate to Dashboard with all required state values
+      //  Navigate to Dashboard with all required state values
       navigate("/dashboard", {
         state: {
           account: address,
           isOwner: userIsOwner,
+          fraudThreshold,            // Pass fraud threshold state
+          penaltyAmount,             // Pass penalty amount state
+          transactions,              // Pass transactions state
+          fraudulentTransactions,    // Pass fraudulent transactions state
+          fraudUsers,                // Pass fraud users state
         },
       });
     } catch (error) {
       console.error("Error connecting wallet:", error);
       if (error.code === 4001) {
-        // User rejected the connection request
+        //  Handle user rejection case
         setMessage("Connection rejected by user.");
       } else {
         setMessage("Error connecting wallet. Please try again.");
@@ -58,9 +68,9 @@ const ConnectWallet = () => {
   };
 
   return (
-    <div>
+    <div className="connect-container">
       <h1>Connect Wallet</h1>
-      <button onClick={connectWallet} disabled={isLoading}>
+      <button className="connect-wallet-btn" onClick={connectWallet} disabled={isLoading}>
         {isLoading ? "Connecting..." : "Connect Wallet"}
       </button>
       {account && (
